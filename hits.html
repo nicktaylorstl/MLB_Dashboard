@@ -216,6 +216,7 @@
   <nav>
     <a href="index.html">Pitches</a>
     <a href="hits.html" class="active">Hits</a>
+    <a href="field.html">Fielding</a>
   </nav>
 </header>
 
@@ -418,6 +419,11 @@ function buildDropdowns(data) {
       (p.halfInning === 'top' ? awayBatters : homeBatters).push(p.batter);
     }
   });
+
+  homePitchers.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  awayPitchers.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  awayBatters.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  homeBatters.sort((a, b) => lastName(a).localeCompare(lastName(b)));
 
   const pSel = document.getElementById('pitcherSelect');
   const bSel = document.getElementById('batterSelect');
@@ -639,7 +645,7 @@ function buildAllGamesDropdowns() {
 
   pSel.innerHTML = '<option value="all">All Pitchers</option>';
   Object.entries(playersIndex.pitchers)
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => lastName(a[0]).localeCompare(lastName(b[0])))
     .forEach(([name, info]) => {
       const o = document.createElement('option');
       o.value = name;
@@ -649,7 +655,7 @@ function buildAllGamesDropdowns() {
 
   bSel.innerHTML = '<option value="all">All Batters</option>';
   Object.entries(playersIndex.batters)
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => lastName(a[0]).localeCompare(lastName(b[0])))
     .forEach(([name, info]) => {
       const o = document.createElement('option');
       o.value = name;
@@ -780,6 +786,11 @@ function applyFilters(hits) {
 
 ['locationFilter','opponentFilter','handFilter','resultFilter','evFilter','trajFilter']
   .forEach(id => document.getElementById(id).addEventListener('change', refresh));
+
+function lastName(name) {
+  const parts = name.trim().split(' ');
+  return parts[parts.length - 1];
+}
 
 function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
 

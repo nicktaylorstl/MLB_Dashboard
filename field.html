@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Baseball Fielding Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1f2937;
+      padding: 14px 24px;
+      border-bottom: 2px solid #374151;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; color: #f9fafb; }
+    nav { display: flex; gap: 4px; margin-left: auto; }
+    nav a {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      text-decoration: none;
+      color: #9ca3af;
+      border: 1px solid #374151;
+      transition: all 0.15s;
+    }
+    nav a:hover { color: #f9fafb; border-color: #6b7280; }
+    nav a.active { color: #f9fafb; background: #374151; border-color: #4b5563; }
+
+    .controls {
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+    select {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #374151;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      min-width: 220px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    select:hover { border-color: #6b7280; }
+    select:focus { outline: none; border-color: #3b82f6; }
+    select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .main {
+      display: flex;
+      gap: 20px;
+      padding: 20px 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .field-panel {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    #fieldTitle { font-size: 0.8rem; color: #9ca3af; text-align: center; }
+    #fieldSvg { display: block; }
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #d1d5db; }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; }
+
+    .right-panel { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 16px; }
+
+    .card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 10px 14px;
+      background: #111827;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      border-bottom: 1px solid #374151;
+    }
+    .card-body { padding: 12px 14px; }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #1f2937;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val { font-weight: 600; color: #60a5fa; }
+
+    .type-bar-row { padding: 4px 0; }
+    .type-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #d1d5db;
+      margin-bottom: 3px;
+    }
+    .type-bar-track { height: 5px; background: #374151; border-radius: 3px; overflow: hidden; }
+    .type-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+    #fieldingList { max-height: 420px; overflow-y: auto; }
+    .fielding-list-header {
+      display: grid;
+      grid-template-columns: 36px 1.2fr 1fr 0.8fr 1.2fr 56px;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+      position: sticky;
+      top: 0;
+    }
+    .fielding-item {
+      display: grid;
+      grid-template-columns: 36px 1.2fr 1fr 0.8fr 1.2fr 56px;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      border-bottom: 1px solid #1f2937;
+      align-items: center;
+      transition: background 0.1s;
+    }
+    .fielding-item:hover { background: #111827; }
+    .fielding-item a { color: #3b82f6; text-decoration: none; font-size: 0.75rem; }
+    .fielding-item a:hover { text-decoration: underline; }
+    .fielding-num { font-size: 0.7rem; font-weight: 700; color: #6b7280; }
+    .credit-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+    .empty { color: #4b5563; text-align: center; padding: 32px; font-size: 0.875rem; }
+
+    #filterToggle {
+      display: none;
+      background: #374151;
+      color: #d1d5db;
+      border: 1px solid #4b5563;
+      padding: 7px 13px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      align-self: flex-end;
+      white-space: nowrap;
+      transition: background 0.15s;
+      margin-left: auto;
+    }
+    #filterToggle:hover { background: #4b5563; }
+
+    @media (max-width: 700px) {
+      header { padding: 10px 14px; }
+      header h1 { font-size: 1.05rem; }
+      nav a { padding: 5px 10px; font-size: 0.75rem; }
+
+      .controls { padding: 10px 14px; gap: 10px; }
+      .control-group { flex: 1 1 calc(50% - 5px); min-width: 0; }
+      select { min-width: 0; width: 100%; font-size: 0.8rem; padding: 7px 8px; }
+
+      #filterToggle { display: flex; align-items: center; gap: 5px; }
+      #filterControls { display: none !important; }
+      #filterControls.mobile-open { display: flex !important; flex-wrap: wrap; }
+
+      .main { padding: 12px 14px; gap: 14px; }
+      .field-panel { width: 100%; }
+      #fieldSvg { width: 100% !important; height: auto !important; }
+
+      .right-panel { min-width: unset; width: 100%; }
+      #fieldingList { max-height: 280px; }
+
+      .fielding-list-header,
+      .fielding-item { grid-template-columns: 32px 1.2fr 0.9fr 1fr 56px; }
+
+      [data-hide-mobile] { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.4rem">⚾</span>
+  <h1>Fielding Visualizer</h1>
+  <nav>
+    <a href="index.html">Pitches</a>
+    <a href="hits.html">Hits</a>
+    <a href="field.html" class="active">Fielding</a>
+  </nav>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Game</label>
+    <select id="gameSelect">
+      <option value="">— Select a game —</option>
+      <option value="__all__">All Games (Full Season)</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Fielder</label>
+    <select id="fielderSelect" disabled><option value="all">All Fielders</option></select>
+  </div>
+  <button id="filterToggle">⚙ Filters</button>
+</div>
+
+<div id="filterControls" class="controls" style="display:none; background:#161e2e; padding:10px 24px; gap:14px;">
+  <span style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#4b5563;align-self:flex-end;padding-bottom:9px">Filters</span>
+  <div class="control-group">
+    <label>Location</label>
+    <select id="locationFilter">
+      <option value="all">All</option>
+      <option value="home">Home</option>
+      <option value="away">Away</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>vs Opponent</label>
+    <select id="opponentFilter" disabled><option value="all">All Opponents</option></select>
+  </div>
+  <div class="control-group">
+    <label>Credit Type</label>
+    <select id="creditFilter">
+      <option value="all">All</option>
+      <option value="f_putout">Putout</option>
+      <option value="f_assist">Assist</option>
+      <option value="f_fielding_error">Error</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Position</label>
+    <select id="positionFilter" disabled><option value="all">All Positions</option></select>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="field-panel">
+    <div id="fieldTitle">Select a game to begin</div>
+    <svg id="fieldSvg" width="400" height="400" viewBox="0 0 250 250">
+      <rect width="250" height="250" fill="#111827" rx="4"/>
+      <text x="125" y="125" text-anchor="middle" fill="#374151" font-size="10">No data loaded</text>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Putout</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Assist</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Error</div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="card">
+      <div class="card-header">Summary</div>
+      <div class="card-body" id="summaryBody"><div class="empty">No game selected</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Fielding Events</div>
+      <div class="fielding-list-header">
+        <span>#</span><span>Fielder</span><span data-hide-mobile>Position</span><span>Credit</span><span>Batter</span><span>Video</span>
+      </div>
+      <div id="fieldingList"><div class="empty">No events to display</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = 'data/';
+let gameData = null;
+let allGamesMode = false;
+let playersIndex = null;
+let loadedForPlayer = null;
+
+const CREDIT_COLORS = {
+  f_putout:        '#22c55e',
+  f_assist:        '#3b82f6',
+  f_fielding_error:'#ef4444',
+};
+const CREDIT_LABELS = {
+  f_putout:        'Putout',
+  f_assist:        'Assist',
+  f_fielding_error:'Error',
+};
+
+fetch(DATA + 'games_index.json')
+  .then(r => r.json())
+  .then(index => {
+    index.reverse();
+    const sel = document.getElementById('gameSelect');
+    let lastDate = '';
+    index.forEach(g => {
+      if (g.date !== lastDate) {
+        const og = document.createElement('optgroup');
+        og.label = formatDate(g.date);
+        sel.appendChild(og);
+        lastDate = g.date;
+      }
+      const opt = document.createElement('option');
+      opt.value = g.file;
+      opt.textContent = `${g.awayAbbr} @ ${g.homeAbbr}  —  ${g.away} vs ${g.home}`;
+      sel.lastChild.appendChild(opt);
+    });
+  });
+
+document.getElementById('gameSelect').addEventListener('change', function () {
+  if (!this.value) return;
+  allGamesMode = this.value === '__all__';
+  resetFilters();
+  if (allGamesMode) {
+    gameData = null;
+    loadedForPlayer = null;
+    document.getElementById('filterControls').style.display = '';
+    loadPlayersIndex();
+  } else {
+    fetch(DATA + this.value)
+      .then(r => r.json())
+      .then(data => {
+        gameData = data;
+        buildDropdowns(data);
+        refresh();
+      });
+  }
+});
+
+document.getElementById('fielderSelect').addEventListener('change', async () => {
+  if (allGamesMode) { await refreshAllGames(); return; }
+  buildFilterOptions(getBaseFiltered());
+  refresh();
+});
+
+function buildDropdowns(data) {
+  const events = data.fielding || [];
+
+  const homeFielders = [], awayFielders = [];
+  const seenH = new Set(), seenA = new Set();
+  events.forEach(e => {
+    const isHomeFielding = e.halfInning === 'top';
+    if (isHomeFielding) {
+      if (!seenH.has(e.fielder)) { seenH.add(e.fielder); homeFielders.push(e.fielder); }
+    } else {
+      if (!seenA.has(e.fielder)) { seenA.add(e.fielder); awayFielders.push(e.fielder); }
+    }
+  });
+
+  homeFielders.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  awayFielders.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+
+  const fSel = document.getElementById('fielderSelect');
+  fSel.innerHTML = '<option value="all">All Fielders</option>';
+
+  const fGroup1 = document.createElement('optgroup');
+  fGroup1.label = `${data.homeAbbr} (Home)`;
+  homeFielders.forEach(n => {
+    const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.homeAbbr})`; fGroup1.appendChild(o);
+  });
+  const fGroup2 = document.createElement('optgroup');
+  fGroup2.label = `${data.awayAbbr} (Away)`;
+  awayFielders.forEach(n => {
+    const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.awayAbbr})`; fGroup2.appendChild(o);
+  });
+  fSel.appendChild(fGroup1);
+  fSel.appendChild(fGroup2);
+  fSel.disabled = false;
+
+  buildFilterOptions(events);
+}
+
+function getBaseFiltered() {
+  if (!gameData) return [];
+  const f = document.getElementById('fielderSelect').value;
+  return (gameData.fielding || []).filter(e =>
+    f === 'all' || e.fielder === f
+  );
+}
+
+function getFiltered() {
+  return applyFilters(getBaseFiltered());
+}
+
+function refresh() {
+  const events = getFiltered();
+  renderField(events);
+  renderSummary(events);
+  renderList(events);
+
+  const f = document.getElementById('fielderSelect').value;
+  const fLabel = f === 'all' ? 'All Fielders' : f;
+  if (allGamesMode && f === 'all') {
+    document.getElementById('fieldTitle').textContent = 'Select a fielder to view season data';
+  } else {
+    const gLabel = allGamesMode ? '  —  All Games' : '';
+    document.getElementById('fieldTitle').textContent =
+      `${fLabel}${gLabel}  (${events.length} event${events.length !== 1 ? 's' : ''})`;
+  }
+}
+
+function renderField(events) {
+  const svg = document.getElementById('fieldSvg');
+
+  const HP = { x: 125, y: 205 };
+  const B1 = { x: 155, y: 175 };
+  const B2 = { x: 125, y: 145 };
+  const B3 = { x: 95,  y: 175 };
+  const LF = { x: 16,  y: 95  };
+  const RF = { x: 234, y: 95  };
+  const CF = { x: 125, y: 18  };
+
+  let html = `
+    <rect width="250" height="250" fill="#0f2318" rx="3"/>
+    <path d="M ${HP.x},${HP.y} L ${LF.x},${LF.y} Q ${CF.x},${CF.y - 10} ${RF.x},${RF.y} Z" fill="#166534"/>
+    <path d="M ${LF.x},${LF.y} Q ${CF.x},${CF.y - 10} ${RF.x},${RF.y}" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line x1="${HP.x}" y1="${HP.y}" x2="${LF.x}" y2="${LF.y}" stroke="white" stroke-width="0.6" opacity="0.5"/>
+    <line x1="${HP.x}" y1="${HP.y}" x2="${RF.x}" y2="${RF.y}" stroke="white" stroke-width="0.6" opacity="0.5"/>
+    <circle cx="${HP.x}" cy="${B2.y + 10}" r="55" fill="#92400e" opacity="0.7"/>
+    <polygon points="${HP.x},${HP.y} ${B1.x},${B1.y} ${B2.x},${B2.y} ${B3.x},${B3.y}" fill="#15803d"/>
+    <circle cx="${HP.x}" cy="${HP.y - 60}" r="5" fill="#b45309"/>
+    <line x1="${HP.x}" y1="${HP.y}" x2="${B1.x}" y2="${B1.y}" stroke="#b45309" stroke-width="1.5"/>
+    <line x1="${B1.x}" y1="${B1.y}" x2="${B2.x}" y2="${B2.y}" stroke="#b45309" stroke-width="1.5"/>
+    <line x1="${B2.x}" y1="${B2.y}" x2="${B3.x}" y2="${B3.y}" stroke="#b45309" stroke-width="1.5"/>
+    <line x1="${B3.x}" y1="${B3.y}" x2="${HP.x}" y2="${HP.y}" stroke="#b45309" stroke-width="1.5"/>
+    <rect x="${B1.x - 4}" y="${B1.y - 4}" width="8" height="8" fill="white" transform="rotate(45,${B1.x},${B1.y})"/>
+    <rect x="${B2.x - 4}" y="${B2.y - 4}" width="8" height="8" fill="white" transform="rotate(45,${B2.x},${B2.y})"/>
+    <rect x="${B3.x - 4}" y="${B3.y - 4}" width="8" height="8" fill="white" transform="rotate(45,${B3.x},${B3.y})"/>
+    <polygon points="${HP.x},${HP.y + 3} ${HP.x + 5},${HP.y - 2} ${HP.x + 5},${HP.y - 7} ${HP.x - 5},${HP.y - 7} ${HP.x - 5},${HP.y - 2}" fill="white"/>
+  `;
+
+  const hitR = window.innerWidth <= 700 ? 7 : 5;
+
+  events.forEach((e, i) => {
+    if (e.hitX == null || e.hitY == null) return;
+    const col = CREDIT_COLORS[e.credit] ?? '#9ca3af';
+    const spd = e.launchSpeed ? `${e.launchSpeed} mph` : '';
+    const dist = e.totalDistance ? ` · ${e.totalDistance} ft` : '';
+    const tip = `#${i + 1}  ${e.fielder} (${e.positionAbbr})\n${CREDIT_LABELS[e.credit] ?? e.credit}\n${e.batter}  ${spd}${dist}\n${e.paResult}`;
+    const href = e.playId ? `https://baseballsavant.mlb.com/sporty-videos?playId=${e.playId}` : null;
+    const open = href ? `<a href="${href}" target="_blank" style="cursor:pointer">` : `<g>`;
+    const close = href ? `</a>` : `</g>`;
+    html += `
+      ${open}
+      <circle cx="${(+e.hitX).toFixed(1)}" cy="${(+e.hitY).toFixed(1)}" r="${hitR}"
+        fill="${col}" fill-opacity="0.85" stroke="rgba(255,255,255,0.4)" stroke-width="0.75">
+        <title>${tip}</title>
+      </circle>
+      <text x="${(+e.hitX).toFixed(1)}" y="${(+e.hitY).toFixed(1)}" text-anchor="middle"
+        dominant-baseline="central" fill="white" font-size="5" font-weight="bold"
+        pointer-events="none">${i + 1}</text>
+      ${close}`;
+  });
+
+  svg.innerHTML = html;
+}
+
+function renderSummary(events) {
+  const el = document.getElementById('summaryBody');
+  if (!events.length) { el.innerHTML = '<div class="empty">No fielding events</div>'; return; }
+
+  const putouts = events.filter(e => e.credit === 'f_putout').length;
+  const assists  = events.filter(e => e.credit === 'f_assist').length;
+  const errors   = events.filter(e => e.credit === 'f_fielding_error').length;
+  const withCoords = events.filter(e => e.hitX != null).length;
+
+  // Breakdown by position
+  const posCounts = {};
+  events.forEach(e => {
+    const p = e.position || 'Unknown';
+    posCounts[p] = (posCounts[p] || 0) + 1;
+  });
+  const total = events.length;
+
+  const posBars = Object.entries(posCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([pos, count]) => {
+      const pct = (count / total * 100).toFixed(0);
+      return `<div class="type-bar-row">
+        <div class="type-bar-label"><span>${pos}</span><span>${count} (${pct}%)</span></div>
+        <div class="type-bar-track"><div class="type-bar-fill" style="width:${pct}%;background:#60a5fa"></div></div>
+      </div>`;
+    }).join('');
+
+  el.innerHTML = `
+    <div class="stat-row"><span>Total Events</span><span class="stat-val">${total}</span></div>
+    <div class="stat-row"><span>Putouts</span><span class="stat-val" style="color:#22c55e">${putouts}</span></div>
+    <div class="stat-row"><span>Assists</span><span class="stat-val" style="color:#3b82f6">${assists}</span></div>
+    <div class="stat-row"><span>Errors</span><span class="stat-val" style="color:#ef4444">${errors}</span></div>
+    <div class="stat-row"><span>Plotted on Field</span><span class="stat-val">${withCoords}</span></div>
+    <div style="margin-top:12px;margin-bottom:6px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280">By Position</div>
+    ${posBars}
+  `;
+}
+
+function renderList(events) {
+  const el = document.getElementById('fieldingList');
+  if (!events.length) { el.innerHTML = '<div class="empty">No fielding events</div>'; return; }
+
+  el.innerHTML = events.map((e, i) => {
+    const col    = CREDIT_COLORS[e.credit] ?? '#9ca3af';
+    const credit = CREDIT_LABELS[e.credit] ?? e.credit;
+    const inn    = e.inning ? `${e.halfInning === 'top' ? '▲' : '▼'}${e.inning}` : '';
+    const vid    = e.playId
+      ? `<a href="https://baseballsavant.mlb.com/sporty-videos?playId=${e.playId}" target="_blank">▶ Watch</a>`
+      : '—';
+    return `<div class="fielding-item">
+      <span class="fielding-num">${i + 1}</span>
+      <span>${e.fielder}</span>
+      <span data-hide-mobile style="color:#9ca3af;font-size:0.75rem">${e.position || '—'}</span>
+      <span><span class="credit-dot" style="background:${col}"></span>${credit}</span>
+      <span style="color:#d1d5db">${e.batter} <span style="color:#6b7280;font-size:0.72rem">${inn}</span></span>
+      <span>${vid}</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadPlayersIndex() {
+  if (!playersIndex) {
+    playersIndex = await fetch(DATA + 'players_index.json').then(r => r.json());
+  }
+  buildAllGamesDropdowns();
+  refresh();
+}
+
+function buildAllGamesDropdowns() {
+  const fSel = document.getElementById('fielderSelect');
+  fSel.innerHTML = '<option value="all">All Fielders</option>';
+  Object.entries(playersIndex.fielders || {})
+    .sort((a, b) => lastName(a[0]).localeCompare(lastName(b[0])))
+    .forEach(([name, info]) => {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = `${name} (${info.team})`;
+      fSel.appendChild(o);
+    });
+  fSel.disabled = false;
+}
+
+async function refreshAllGames() {
+  const f = document.getElementById('fielderSelect').value;
+
+  if (f === 'all') {
+    gameData = null;
+    loadedForPlayer = null;
+    refresh();
+    return;
+  }
+
+  const loadFor = `fielder:${f}`;
+  if (loadedForPlayer !== loadFor) {
+    loadedForPlayer = loadFor;
+    document.getElementById('fieldTitle').textContent = 'Loading...';
+    const gameFiles = playersIndex.fielders[f]?.games || [];
+    const results = await Promise.all(gameFiles.map(fn => fetch(DATA + fn).then(r => r.json())));
+    gameData = {
+      fielding: results.flatMap(g => (g.fielding || []).filter(e => e.fielder === f)),
+      homeAbbr: '', awayAbbr: '',
+    };
+    buildFilterOptions(getBaseFiltered());
+  }
+
+  refresh();
+}
+
+function resetFilters() {
+  ['locationFilter','opponentFilter','creditFilter','positionFilter']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = 'all'; });
+  document.getElementById('filterControls').classList.remove('mobile-open');
+  document.getElementById('filterToggle').textContent = '⚙ Filters';
+}
+
+document.getElementById('filterToggle').addEventListener('click', () => {
+  const fc = document.getElementById('filterControls');
+  const open = fc.classList.toggle('mobile-open');
+  document.getElementById('filterToggle').textContent = open ? '⚙ Filters ▲' : '⚙ Filters ▼';
+});
+
+function buildFilterOptions(events) {
+  const f = document.getElementById('fielderSelect').value;
+
+  const oppSel = document.getElementById('opponentFilter');
+  const prevOpp = oppSel.value;
+  const oppTeams = new Set();
+  events.forEach(e => {
+    // Fielder is on defense: opponent is the batting team
+    const opp = e.halfInning === 'top' ? e.awayAbbr : e.homeAbbr;
+    if (opp) oppTeams.add(opp);
+  });
+  oppSel.innerHTML = '<option value="all">All Opponents</option>';
+  [...oppTeams].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; oppSel.appendChild(o); });
+  if ([...oppTeams].includes(prevOpp)) oppSel.value = prevOpp;
+  oppSel.disabled = oppTeams.size === 0;
+
+  const posSel = document.getElementById('positionFilter');
+  const prevPos = posSel.value;
+  const positions = [...new Set(events.map(e => e.position).filter(Boolean))].sort();
+  posSel.innerHTML = '<option value="all">All Positions</option>';
+  positions.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; posSel.appendChild(o); });
+  if (positions.includes(prevPos)) posSel.value = prevPos;
+  posSel.disabled = positions.length === 0;
+
+  document.getElementById('filterControls').style.display = '';
+}
+
+function applyFilters(events) {
+  const f = document.getElementById('fielderSelect').value;
+
+  const loc = document.getElementById('locationFilter').value;
+  if (loc !== 'all') {
+    events = events.filter(e => {
+      const isHome = e.halfInning === 'top';
+      return loc === 'home' ? isHome : !isHome;
+    });
+  }
+
+  const opp = document.getElementById('opponentFilter').value;
+  if (opp !== 'all') {
+    events = events.filter(e => {
+      const oppTeam = e.halfInning === 'top' ? e.awayAbbr : e.homeAbbr;
+      return oppTeam === opp;
+    });
+  }
+
+  const credit = document.getElementById('creditFilter').value;
+  if (credit !== 'all') events = events.filter(e => e.credit === credit);
+
+  const pos = document.getElementById('positionFilter').value;
+  if (pos !== 'all') events = events.filter(e => e.position === pos);
+
+  return events;
+}
+
+['locationFilter','opponentFilter','creditFilter','positionFilter']
+  .forEach(id => document.getElementById(id).addEventListener('change', refresh));
+
+function lastName(name) {
+  const parts = name.trim().split(' ');
+  return parts[parts.length - 1];
+}
+
+function formatDate(d) {
+  const [y, m, day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m - 1]} ${+day}, ${y}`;
+}
+</script>
+</body>
+</html>

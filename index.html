@@ -135,7 +135,7 @@
     #pitchList { max-height: 380px; overflow-y: auto; }
     .pitch-list-header {
       display: grid;
-      grid-template-columns: 36px 1.5fr 1.5fr 1fr 40px 56px;
+      grid-template-columns: 36px 1.3fr 1.3fr 0.8fr 0.6fr 0.6fr 36px 56px;
       gap: 6px;
       padding: 6px 14px;
       font-size: 0.68rem;
@@ -149,7 +149,7 @@
     }
     .pitch-item {
       display: grid;
-      grid-template-columns: 36px 1.5fr 1.5fr 1fr 40px 56px;
+      grid-template-columns: 36px 1.3fr 1.3fr 0.8fr 0.6fr 0.6fr 36px 56px;
       gap: 6px;
       padding: 6px 14px;
       font-size: 0.8rem;
@@ -207,7 +207,7 @@
       #pitchList { max-height: 280px; }
 
       .pitch-list-header,
-      .pitch-item { grid-template-columns: 32px 1.4fr 1fr 56px; }
+      .pitch-item { grid-template-columns: 32px 1.4fr 0.9fr 56px; }
 
       [data-hide-mobile] { display: none !important; }
     }
@@ -221,6 +221,7 @@
   <nav>
     <a href="index.html" class="active">Pitches</a>
     <a href="hits.html">Hits</a>
+    <a href="field.html">Fielding</a>
   </nav>
 </header>
 
@@ -312,7 +313,7 @@
     <div class="card">
       <div class="card-header">Pitches</div>
       <div class="pitch-list-header">
-        <span>#</span><span>Type</span><span data-hide-mobile>Call</span><span>Speed</span><span data-hide-mobile>Inn.</span><span>Video</span>
+        <span>#</span><span>Type</span><span data-hide-mobile>Call</span><span>Velo</span><span data-hide-mobile>iVB</span><span data-hide-mobile>HB</span><span data-hide-mobile>Inn.</span><span>Video</span>
       </div>
       <div id="pitchList"><div class="empty">No pitches to display</div></div>
     </div>
@@ -428,6 +429,11 @@ function buildDropdowns(data) {
       (p.halfInning === 'top' ? awayBatters : homeBatters).push(p.batter);
     }
   });
+
+  homePitchers.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  awayPitchers.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  awayBatters.sort((a, b) => lastName(a).localeCompare(lastName(b)));
+  homeBatters.sort((a, b) => lastName(a).localeCompare(lastName(b)));
 
   const pSel = document.getElementById('pitcherSelect');
   const bSel = document.getElementById('batterSelect');
@@ -664,6 +670,8 @@ function renderList(labeled) {
   el.innerHTML = labeled.map(p => {
     const col = COLORS[p.outcome] ?? '#9ca3af';
     const spd = p.startSpeed ? p.startSpeed + ' mph' : '—';
+    const ivb = p.iVB != null ? (p.iVB >= 0 ? '+' : '') + p.iVB.toFixed(1) : '—';
+    const hb  = p.HB  != null ? (p.HB  >= 0 ? '+' : '') + p.HB.toFixed(1)  : '—';
     const inn = p.inning ? `${p.halfInning === 'top' ? '▲' : '▼'}${p.inning}` : '—';
     const vid = p.playId
       ? `<a href="https://baseballsavant.mlb.com/sporty-videos?playId=${p.playId}" target="_blank">▶ Watch</a>`
@@ -673,6 +681,8 @@ function renderList(labeled) {
       <span><span class="outcome-dot" style="background:${col}"></span>${p.pitchType}</span>
       <span data-hide-mobile style="color:#9ca3af;font-size:0.75rem">${p.call}</span>
       <span>${spd}</span>
+      <span data-hide-mobile style="color:#9ca3af">${ivb}</span>
+      <span data-hide-mobile style="color:#9ca3af">${hb}</span>
       <span data-hide-mobile style="color:#6b7280">${inn}</span>
       <span>${vid}</span>
     </div>`;
@@ -693,7 +703,7 @@ function buildAllGamesDropdowns() {
 
   pSel.innerHTML = '<option value="all">All Pitchers</option>';
   Object.entries(playersIndex.pitchers)
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => lastName(a[0]).localeCompare(lastName(b[0])))
     .forEach(([name, info]) => {
       const o = document.createElement('option');
       o.value = name;
@@ -703,7 +713,7 @@ function buildAllGamesDropdowns() {
 
   bSel.innerHTML = '<option value="all">All Batters</option>';
   Object.entries(playersIndex.batters)
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => lastName(a[0]).localeCompare(lastName(b[0])))
     .forEach(([name, info]) => {
       const o = document.createElement('option');
       o.value = name;
@@ -849,6 +859,11 @@ function applyFilters(pitches) {
 // Filter change listeners
 ['locationFilter','opponentFilter','handFilter','pitchTypeFilter','callFilter','countFilter']
   .forEach(id => document.getElementById(id).addEventListener('change', refresh));
+
+function lastName(name) {
+  const parts = name.trim().split(' ');
+  return parts[parts.length - 1];
+}
 
 function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
 
