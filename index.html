@@ -291,27 +291,43 @@ function buildDropdowns(data) {
       batterTeam[p.batter] = p.halfInning === 'top' ? data.awayAbbr : data.homeAbbr;
   });
 
-  const pitchers = [...new Set(pitches.map(p => p.pitcher))].sort();
-  const batters  = [...new Set(pitches.map(p => p.batter))].sort();
+  // Order of first appearance, preserving insertion order
+  const pitchersSeen = new Set(), battersSeen = new Set();
+  const homePitchers = [], awayPitchers = [];
+  const awayBatters  = [], homeBatters  = [];
+  pitches.forEach(p => {
+    if (!pitchersSeen.has(p.pitcher)) {
+      pitchersSeen.add(p.pitcher);
+      (p.halfInning === 'top' ? homePitchers : awayPitchers).push(p.pitcher);
+    }
+    if (!battersSeen.has(p.batter)) {
+      battersSeen.add(p.batter);
+      (p.halfInning === 'top' ? awayBatters : homeBatters).push(p.batter);
+    }
+  });
 
   const pSel = document.getElementById('pitcherSelect');
   const bSel = document.getElementById('batterSelect');
 
   pSel.innerHTML = '<option value="all">All Pitchers</option>';
-  pitchers.forEach(n => {
-    const o = document.createElement('option');
-    o.value = n;
-    o.textContent = `${n} (${pitcherTeam[n] ?? '?'})`;
-    pSel.appendChild(o);
-  });
+  const pGroup1 = document.createElement('optgroup');
+  pGroup1.label = `${data.homeAbbr} (Home)`;
+  homePitchers.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.homeAbbr})`; pGroup1.appendChild(o); });
+  const pGroup2 = document.createElement('optgroup');
+  pGroup2.label = `${data.awayAbbr} (Away)`;
+  awayPitchers.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.awayAbbr})`; pGroup2.appendChild(o); });
+  pSel.appendChild(pGroup1);
+  pSel.appendChild(pGroup2);
 
   bSel.innerHTML = '<option value="all">All Batters</option>';
-  batters.forEach(n => {
-    const o = document.createElement('option');
-    o.value = n;
-    o.textContent = `${n} (${batterTeam[n] ?? '?'})`;
-    bSel.appendChild(o);
-  });
+  const bGroup1 = document.createElement('optgroup');
+  bGroup1.label = `${data.awayAbbr} (Away)`;
+  awayBatters.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.awayAbbr})`; bGroup1.appendChild(o); });
+  const bGroup2 = document.createElement('optgroup');
+  bGroup2.label = `${data.homeAbbr} (Home)`;
+  homeBatters.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.homeAbbr})`; bGroup2.appendChild(o); });
+  bSel.appendChild(bGroup1);
+  bSel.appendChild(bGroup2);
 
   pSel.disabled = false;
   bSel.disabled = false;
