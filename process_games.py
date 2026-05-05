@@ -34,11 +34,15 @@ for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
     for play in live_data.get("plays", {}).get("allPlays", []):
         pitcher = play.get("matchup", {}).get("pitcher", {})
         batter = play.get("matchup", {}).get("batter", {})
+        bat_side = play.get("matchup", {}).get("batSide", {}).get("code", "")
+        pitch_hand_code = play.get("matchup", {}).get("pitchHand", {}).get("code", "")
         inning = play.get("about", {}).get("inning")
         half = play.get("about", {}).get("halfInning")
         at_bat_index = play.get("about", {}).get("atBatIndex", 0)
         pa_result = play.get("result", {}).get("event", "")
         pitch_in_pa = 0
+        balls_in_pa = 0
+        strikes_in_pa = 0
 
         for event in play.get("playEvents", []):
             if not event.get("isPitch"):
@@ -84,6 +88,12 @@ for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
                 "atBatIndex": at_bat_index,
                 "pitchInPa": pitch_in_pa,
                 "paResult": pa_result,
+                "batSide": bat_side,
+                "pitchHand": pitch_hand_code,
+                "homeAbbr": home_abbr,
+                "awayAbbr": away_abbr,
+                "countBalls": balls_in_pa,
+                "countStrikes": strikes_in_pa,
             }
             if hit_data:
                 pitch["launchSpeed"] = hit_data.get("launchSpeed")
@@ -95,6 +105,13 @@ for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
                 pitch["hitY"] = hit_coords.get("coordY")
 
             pitches.append(pitch)
+
+            if outcome == "ball":
+                balls_in_pa += 1
+            elif outcome == "strike":
+                desc = details.get("description", "")
+                if not ("Foul" in desc and strikes_in_pa >= 2):
+                    strikes_in_pa = min(strikes_in_pa + 1, 2)
 
     seen_p, seen_b = set(), set()
     for pitch in pitches:

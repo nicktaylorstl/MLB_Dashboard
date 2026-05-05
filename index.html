@@ -203,6 +203,48 @@
   </div>
 </div>
 
+<div id="filterControls" class="controls" style="display:none; background:#161e2e; padding:10px 24px; gap:14px;">
+  <span style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#4b5563;align-self:flex-end;padding-bottom:9px">Filters</span>
+  <div class="control-group">
+    <label>Location</label>
+    <select id="locationFilter">
+      <option value="all">All</option>
+      <option value="home">Home</option>
+      <option value="away">Away</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>vs Opponent</label>
+    <select id="opponentFilter" disabled><option value="all">All Opponents</option></select>
+  </div>
+  <div class="control-group">
+    <label id="handLabel">vs Handedness</label>
+    <select id="handFilter">
+      <option value="all">All</option>
+      <option value="R">vs Righties</option>
+      <option value="L">vs Lefties</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Pitch Type</label>
+    <select id="pitchTypeFilter" disabled><option value="all">All Types</option></select>
+  </div>
+  <div class="control-group">
+    <label>Result</label>
+    <select id="callFilter" disabled><option value="all">All Results</option></select>
+  </div>
+  <div class="control-group">
+    <label>Count</label>
+    <select id="countFilter">
+      <option value="all">Any Count</option>
+      <option value="00">First Pitch (0-0)</option>
+      <option value="2S">2 Strikes</option>
+      <option value="3B">3 Balls</option>
+      <option value="32">Full Count (3-2)</option>
+    </select>
+  </div>
+</div>
+
 <div class="main">
 
   <div class="zone-panel">
@@ -278,11 +320,13 @@ fetch(DATA + 'games_index.json')
 document.getElementById('gameSelect').addEventListener('change', function () {
   if (!this.value) return;
   allGamesMode = this.value === '__all__';
+  resetFilters();
   if (allGamesMode) {
     gameData = null;
     loadedForPlayer = null;
     document.getElementById('paSelect').value = 'all';
     document.getElementById('paSelect').disabled = true;
+    document.getElementById('filterControls').style.display = '';
     loadPlayersIndex();
   } else {
     fetch(DATA + this.value)
@@ -297,14 +341,16 @@ document.getElementById('gameSelect').addEventListener('change', function () {
 
 document.getElementById('pitcherSelect').addEventListener('change', async () => {
   if (allGamesMode) { await refreshAllGames(); return; }
-  buildPaDropdown(getFilteredByPB());
+  buildPaDropdown(getBaseFiltered());
+  buildFilterOptions(getBaseFiltered());
   document.getElementById('paSelect').value = 'all';
   refresh();
 });
 
 document.getElementById('batterSelect').addEventListener('change', async () => {
   if (allGamesMode) { await refreshAllGames(); return; }
-  buildPaDropdown(getFilteredByPB());
+  buildPaDropdown(getBaseFiltered());
+  buildFilterOptions(getBaseFiltered());
   document.getElementById('paSelect').value = 'all';
   refresh();
 });
@@ -366,6 +412,7 @@ function buildDropdowns(data) {
   bSel.disabled = false;
 
   buildPaDropdown(pitches);
+  buildFilterOptions(pitches);
 }
 
 function buildPaDropdown(pitches) {
@@ -392,8 +439,8 @@ function buildPaDropdown(pitches) {
   sel.disabled = seen.size === 0;
 }
 
-// Filter by pitcher + batter only (no PA)
-function getFilteredByPB() {
+// Pitcher + batter filter only — used for PA dropdown and filter option building
+function getBaseFiltered() {
   if (!gameData) return [];
   const p = document.getElementById('pitcherSelect').value;
   const b = document.getElementById('batterSelect').value;
@@ -401,6 +448,11 @@ function getFilteredByPB() {
     (p === 'all' || pitch.pitcher === p) &&
     (b === 'all' || pitch.batter === b)
   );
+}
+
+// Pitcher + batter + all additional filters — used for rendering
+function getFilteredByPB() {
+  return applyFilters(getBaseFiltered());
 }
 
 // Filter by pitcher + batter + PA
@@ -639,10 +691,112 @@ async function refreshAllGames() {
       : (playersIndex.batters[b]?.games || []);
     const results = await Promise.all(gameFiles.map(f => fetch(DATA + f).then(r => r.json())));
     gameData = { pitches: results.flatMap(g => g.pitches), homeAbbr: '', awayAbbr: '' };
+    buildFilterOptions(getBaseFiltered());
   }
 
   refresh();
 }
+
+function resetFilters() {
+  ['locationFilter','opponentFilter','handFilter','pitchTypeFilter','callFilter','countFilter']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = 'all'; });
+}
+
+function buildFilterOptions(pitches) {
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+
+  // Vs Opponent — direction depends on who is selected
+  const oppSel = document.getElementById('opponentFilter');
+  const prevOpp = oppSel.value;
+  const oppTeams = new Set();
+  pitches.forEach(pitch => {
+    const opp = p !== 'all'
+      ? (pitch.halfInning === 'top' ? pitch.awayAbbr : pitch.homeAbbr)
+      : b !== 'all'
+        ? (pitch.halfInning === 'top' ? pitch.homeAbbr : pitch.awayAbbr)
+        : null;
+    if (opp) oppTeams.add(opp);
+  });
+  oppSel.innerHTML = '<option value="all">All Opponents</option>';
+  [...oppTeams].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; oppSel.appendChild(o); });
+  if ([...oppTeams].includes(prevOpp)) oppSel.value = prevOpp;
+  oppSel.disabled = oppTeams.size === 0;
+
+  // Handedness label
+  const lbl = document.getElementById('handLabel');
+  lbl.textContent = p !== 'all' ? 'Batter Hand' : b !== 'all' ? 'Pitcher Hand' : 'vs Handedness';
+
+  // Pitch Type
+  const ptSel = document.getElementById('pitchTypeFilter');
+  const prevPt = ptSel.value;
+  const types = [...new Set(pitches.map(q => q.pitchType).filter(Boolean))].sort();
+  ptSel.innerHTML = '<option value="all">All Types</option>';
+  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; ptSel.appendChild(o); });
+  if (types.includes(prevPt)) ptSel.value = prevPt;
+  ptSel.disabled = types.length === 0;
+
+  // Call/Result
+  const callSel = document.getElementById('callFilter');
+  const prevCall = callSel.value;
+  const calls = [...new Set(pitches.map(q => q.call).filter(Boolean))].sort();
+  callSel.innerHTML = '<option value="all">All Results</option>';
+  calls.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; callSel.appendChild(o); });
+  if (calls.includes(prevCall)) callSel.value = prevCall;
+  callSel.disabled = calls.length === 0;
+
+  document.getElementById('filterControls').style.display = '';
+}
+
+function applyFilters(pitches) {
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+
+  const loc = document.getElementById('locationFilter').value;
+  if (loc !== 'all') {
+    pitches = pitches.filter(pitch => {
+      const isHome = p !== 'all' ? pitch.halfInning === 'top' : pitch.halfInning === 'bottom';
+      return loc === 'home' ? isHome : !isHome;
+    });
+  }
+
+  const opp = document.getElementById('opponentFilter').value;
+  if (opp !== 'all') {
+    pitches = pitches.filter(pitch => {
+      const oppTeam = p !== 'all'
+        ? (pitch.halfInning === 'top' ? pitch.awayAbbr : pitch.homeAbbr)
+        : (pitch.halfInning === 'top' ? pitch.homeAbbr : pitch.awayAbbr);
+      return oppTeam === opp;
+    });
+  }
+
+  const hand = document.getElementById('handFilter').value;
+  if (hand !== 'all') {
+    pitches = pitches.filter(pitch => {
+      if (p !== 'all') return pitch.batSide === hand;
+      if (b !== 'all') return pitch.pitchHand === hand;
+      return true;
+    });
+  }
+
+  const pt = document.getElementById('pitchTypeFilter').value;
+  if (pt !== 'all') pitches = pitches.filter(q => q.pitchType === pt);
+
+  const call = document.getElementById('callFilter').value;
+  if (call !== 'all') pitches = pitches.filter(q => q.call === call);
+
+  const count = document.getElementById('countFilter').value;
+  if (count === '00') pitches = pitches.filter(q => q.countBalls === 0 && q.countStrikes === 0);
+  else if (count === '2S') pitches = pitches.filter(q => q.countStrikes === 2);
+  else if (count === '3B') pitches = pitches.filter(q => q.countBalls === 3);
+  else if (count === '32') pitches = pitches.filter(q => q.countBalls === 3 && q.countStrikes === 2);
+
+  return pitches;
+}
+
+// Filter change listeners
+['locationFilter','opponentFilter','handFilter','pitchTypeFilter','callFilter','countFilter']
+  .forEach(id => document.getElementById(id).addEventListener('change', refresh));
 
 function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
 
