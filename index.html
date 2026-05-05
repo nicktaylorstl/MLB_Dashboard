@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Baseball Pitch Visualizer</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -168,6 +169,48 @@
     .outcome-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
 
     .empty { color: #4b5563; text-align: center; padding: 32px; font-size: 0.875rem; }
+
+    #filterToggle {
+      display: none;
+      background: #374151;
+      color: #d1d5db;
+      border: 1px solid #4b5563;
+      padding: 7px 13px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      align-self: flex-end;
+      white-space: nowrap;
+      transition: background 0.15s;
+      margin-left: auto;
+    }
+    #filterToggle:hover { background: #4b5563; }
+
+    @media (max-width: 700px) {
+      header { padding: 10px 14px; }
+      header h1 { font-size: 1.05rem; }
+      nav a { padding: 5px 10px; font-size: 0.75rem; }
+
+      .controls { padding: 10px 14px; gap: 10px; }
+      .control-group { flex: 1 1 calc(50% - 5px); min-width: 0; }
+      select { min-width: 0; width: 100%; font-size: 0.8rem; padding: 7px 8px; }
+
+      #filterToggle { display: flex; align-items: center; gap: 5px; }
+      #filterControls { display: none !important; }
+      #filterControls.mobile-open { display: flex !important; flex-wrap: wrap; }
+
+      .main { padding: 12px 14px; gap: 14px; }
+      .zone-panel { width: 100%; }
+      #strikeZone { width: 100% !important; height: auto !important; }
+
+      .right-panel { min-width: unset; width: 100%; }
+      #pitchList { max-height: 280px; }
+
+      .pitch-list-header,
+      .pitch-item { grid-template-columns: 32px 1.4fr 1fr 56px; }
+
+      [data-hide-mobile] { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -201,6 +244,7 @@
     <label>Plate Appearance</label>
     <select id="paSelect" disabled><option value="all">All Plate Appearances</option></select>
   </div>
+  <button id="filterToggle">⚙ Filters</button>
 </div>
 
 <div id="filterControls" class="controls" style="display:none; background:#161e2e; padding:10px 24px; gap:14px;">
@@ -268,7 +312,7 @@
     <div class="card">
       <div class="card-header">Pitches</div>
       <div class="pitch-list-header">
-        <span>#</span><span>Type</span><span>Call</span><span>Speed</span><span>Inn.</span><span>Video</span>
+        <span>#</span><span>Type</span><span data-hide-mobile>Call</span><span>Speed</span><span data-hide-mobile>Inn.</span><span>Video</span>
       </div>
       <div id="pitchList"><div class="empty">No pitches to display</div></div>
     </div>
@@ -627,9 +671,9 @@ function renderList(labeled) {
     return `<div class="pitch-item">
       <span class="pitch-num">${p.label}</span>
       <span><span class="outcome-dot" style="background:${col}"></span>${p.pitchType}</span>
-      <span style="color:#9ca3af;font-size:0.75rem">${p.call}</span>
+      <span data-hide-mobile style="color:#9ca3af;font-size:0.75rem">${p.call}</span>
       <span>${spd}</span>
-      <span style="color:#6b7280">${inn}</span>
+      <span data-hide-mobile style="color:#6b7280">${inn}</span>
       <span>${vid}</span>
     </div>`;
   }).join('');
@@ -700,7 +744,15 @@ async function refreshAllGames() {
 function resetFilters() {
   ['locationFilter','opponentFilter','handFilter','pitchTypeFilter','callFilter','countFilter']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = 'all'; });
+  document.getElementById('filterControls').classList.remove('mobile-open');
+  document.getElementById('filterToggle').textContent = '⚙ Filters';
 }
+
+document.getElementById('filterToggle').addEventListener('click', () => {
+  const fc = document.getElementById('filterControls');
+  const open = fc.classList.toggle('mobile-open');
+  document.getElementById('filterToggle').textContent = open ? '⚙ Filters ▲' : '⚙ Filters ▼';
+});
 
 function buildFilterOptions(pitches) {
   const p = document.getElementById('pitcherSelect').value;
