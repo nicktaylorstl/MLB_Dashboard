@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Baseball Hit Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1f2937;
+      padding: 14px 24px;
+      border-bottom: 2px solid #374151;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; color: #f9fafb; }
+    nav { display: flex; gap: 4px; margin-left: auto; }
+    nav a {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      text-decoration: none;
+      color: #9ca3af;
+      border: 1px solid #374151;
+      transition: all 0.15s;
+    }
+    nav a:hover { color: #f9fafb; border-color: #6b7280; }
+    nav a.active { color: #f9fafb; background: #374151; border-color: #4b5563; }
+
+    .controls {
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+    select {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #374151;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      min-width: 220px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    select:hover { border-color: #6b7280; }
+    select:focus { outline: none; border-color: #3b82f6; }
+    select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .main {
+      display: flex;
+      gap: 20px;
+      padding: 20px 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .field-panel {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    #fieldTitle { font-size: 0.8rem; color: #9ca3af; text-align: center; }
+    #fieldSvg { display: block; }
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #d1d5db; }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; }
+
+    .right-panel { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 16px; }
+
+    .card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 10px 14px;
+      background: #111827;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      border-bottom: 1px solid #374151;
+    }
+    .card-body { padding: 12px 14px; }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #1f2937;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val { font-weight: 600; color: #60a5fa; }
+
+    .type-bar-row { padding: 4px 0; }
+    .type-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #d1d5db;
+      margin-bottom: 3px;
+    }
+    .type-bar-track { height: 5px; background: #374151; border-radius: 3px; overflow: hidden; }
+    .type-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+    #hitList { max-height: 420px; overflow-y: auto; }
+    .hit-list-header {
+      display: grid;
+      grid-template-columns: 36px 1.4fr 1.4fr 1fr 1fr 1fr 1fr 56px;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+      position: sticky;
+      top: 0;
+    }
+    .hit-item {
+      display: grid;
+      grid-template-columns: 36px 1.4fr 1.4fr 1fr 1fr 1fr 1fr 56px;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      border-bottom: 1px solid #1f2937;
+      align-items: center;
+      transition: background 0.1s;
+    }
+    .hit-item:hover { background: #111827; }
+    .hit-item a { color: #3b82f6; text-decoration: none; font-size: 0.75rem; }
+    .hit-item a:hover { text-decoration: underline; }
+    .hit-num { font-size: 0.7rem; font-weight: 700; color: #6b7280; }
+    .traj-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+    .empty { color: #4b5563; text-align: center; padding: 32px; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.4rem">⚾</span>
+  <h1>Hit Visualizer</h1>
+  <nav>
+    <a href="index.html">Pitches</a>
+    <a href="hits.html" class="active">Hits</a>
+  </nav>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Game</label>
+    <select id="gameSelect"><option value="">— Select a game —</option></select>
+  </div>
+  <div class="control-group">
+    <label>Pitcher</label>
+    <select id="pitcherSelect" disabled><option value="all">All Pitchers</option></select>
+  </div>
+  <div class="control-group">
+    <label>Batter</label>
+    <select id="batterSelect" disabled><option value="all">All Batters</option></select>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="field-panel">
+    <div id="fieldTitle">Select a game to begin</div>
+    <svg id="fieldSvg" width="400" height="400" viewBox="0 0 250 250">
+      <rect width="250" height="250" fill="#111827" rx="4"/>
+      <text x="125" y="125" text-anchor="middle" fill="#374151" font-size="10">No data loaded</text>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#facc15"></div>Line Drive</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>Fly Ball</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#84cc16"></div>Ground Ball</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c084fc"></div>Popup</div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="card">
+      <div class="card-header">Summary</div>
+      <div class="card-body" id="summaryBody"><div class="empty">No game selected</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Balls in Play</div>
+      <div class="hit-list-header">
+        <span>#</span><span>Batter</span><span>Pitcher</span><span>Type</span><span>Result</span><span>Exit Velo</span><span>Distance</span><span>Video</span>
+      </div>
+      <div id="hitList"><div class="empty">No hits to display</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = 'data/';
+let gameData = null;
+
+// Field coordinate system
+// Home plate: (125, 205), field extends upward
+// Coordinate space: 0-250 matches MLB hit coordinate system
+
+const TRAJ_COLORS = {
+  line_drive:  '#facc15',
+  fly_ball:    '#f97316',
+  ground_ball: '#84cc16',
+  popup:       '#c084fc',
+};
+const TRAJ_LABELS = {
+  line_drive:  'Line Drive',
+  fly_ball:    'Fly Ball',
+  ground_ball: 'Ground Ball',
+  popup:       'Popup',
+};
+
+// Load game index — newest first
+fetch(DATA + 'games_index.json')
+  .then(r => r.json())
+  .then(index => {
+    index.reverse();
+    const sel = document.getElementById('gameSelect');
+    let lastDate = '';
+    index.forEach(g => {
+      if (g.date !== lastDate) {
+        const og = document.createElement('optgroup');
+        og.label = formatDate(g.date);
+        sel.appendChild(og);
+        lastDate = g.date;
+      }
+      const opt = document.createElement('option');
+      opt.value = g.file;
+      opt.textContent = `${g.awayAbbr} @ ${g.homeAbbr}  —  ${g.away} vs ${g.home}`;
+      sel.lastChild.appendChild(opt);
+    });
+  });
+
+document.getElementById('gameSelect').addEventListener('change', function () {
+  if (!this.value) return;
+  fetch(DATA + this.value)
+    .then(r => r.json())
+    .then(data => {
+      gameData = data;
+      buildDropdowns(data);
+      refresh();
+    });
+});
+
+document.getElementById('pitcherSelect').addEventListener('change', refresh);
+document.getElementById('batterSelect').addEventListener('change', refresh);
+
+function buildDropdowns(data) {
+  const pitches = data.pitches;
+
+  const pitcherTeam = {}, batterTeam = {};
+  pitches.forEach(p => {
+    if (!pitcherTeam[p.pitcher])
+      pitcherTeam[p.pitcher] = p.halfInning === 'top' ? data.homeAbbr : data.awayAbbr;
+    if (!batterTeam[p.batter])
+      batterTeam[p.batter] = p.halfInning === 'top' ? data.awayAbbr : data.homeAbbr;
+  });
+
+  const pitchersSeen = new Set(), battersSeen = new Set();
+  const homePitchers = [], awayPitchers = [];
+  const awayBatters  = [], homeBatters  = [];
+  pitches.forEach(p => {
+    if (!pitchersSeen.has(p.pitcher)) {
+      pitchersSeen.add(p.pitcher);
+      (p.halfInning === 'top' ? homePitchers : awayPitchers).push(p.pitcher);
+    }
+    if (!battersSeen.has(p.batter)) {
+      battersSeen.add(p.batter);
+      (p.halfInning === 'top' ? awayBatters : homeBatters).push(p.batter);
+    }
+  });
+
+  const pSel = document.getElementById('pitcherSelect');
+  const bSel = document.getElementById('batterSelect');
+
+  pSel.innerHTML = '<option value="all">All Pitchers</option>';
+  const pGroup1 = document.createElement('optgroup'); pGroup1.label = `${data.homeAbbr} (Home)`;
+  homePitchers.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.homeAbbr})`; pGroup1.appendChild(o); });
+  const pGroup2 = document.createElement('optgroup'); pGroup2.label = `${data.awayAbbr} (Away)`;
+  awayPitchers.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.awayAbbr})`; pGroup2.appendChild(o); });
+  pSel.appendChild(pGroup1); pSel.appendChild(pGroup2);
+
+  bSel.innerHTML = '<option value="all">All Batters</option>';
+  const bGroup1 = document.createElement('optgroup'); bGroup1.label = `${data.awayAbbr} (Away)`;
+  awayBatters.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.awayAbbr})`; bGroup1.appendChild(o); });
+  const bGroup2 = document.createElement('optgroup'); bGroup2.label = `${data.homeAbbr} (Home)`;
+  homeBatters.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} (${data.homeAbbr})`; bGroup2.appendChild(o); });
+  bSel.appendChild(bGroup1); bSel.appendChild(bGroup2);
+
+  pSel.disabled = false;
+  bSel.disabled = false;
+}
+
+function getFiltered() {
+  if (!gameData) return [];
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+  return gameData.pitches.filter(pitch =>
+    pitch.outcome === 'inplay' &&
+    pitch.hitX != null && pitch.hitY != null &&
+    (p === 'all' || pitch.pitcher === p) &&
+    (b === 'all' || pitch.batter === b)
+  );
+}
+
+function refresh() {
+  const hits = getFiltered();
+  renderField(hits);
+  renderSummary(hits);
+  renderList(hits);
+
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+  const pLabel = p === 'all' ? 'All Pitchers' : p;
+  const bLabel = b === 'all' ? 'All Batters'  : b;
+  document.getElementById('fieldTitle').textContent =
+    `${pLabel}  →  ${bLabel}  (${hits.length} ball${hits.length !== 1 ? 's' : ''} in play)`;
+}
+
+function renderField(hits) {
+  const svg = document.getElementById('fieldSvg');
+
+  // Field geometry constants
+  const HP = { x: 125, y: 205 };  // home plate
+  const B1 = { x: 155, y: 175 };  // first base
+  const B2 = { x: 125, y: 145 };  // second base
+  const B3 = { x: 95,  y: 175 };  // third base
+  const LF = { x: 16,  y: 95  };  // left field foul pole
+  const RF = { x: 234, y: 95  };  // right field foul pole
+  const CF = { x: 125, y: 18  };  // center field wall
+
+  let html = `
+    <!-- Foul territory background -->
+    <rect width="250" height="250" fill="#0f2318" rx="3"/>
+
+    <!-- Outfield grass -->
+    <path d="M ${HP.x},${HP.y} L ${LF.x},${LF.y} Q ${CF.x},${CF.y - 10} ${RF.x},${RF.y} Z"
+          fill="#166534"/>
+
+    <!-- Outfield wall arc -->
+    <path d="M ${LF.x},${LF.y} Q ${CF.x},${CF.y - 10} ${RF.x},${RF.y}"
+          fill="none" stroke="#4b5563" stroke-width="1.5"/>
+
+    <!-- Foul lines -->
+    <line x1="${HP.x}" y1="${HP.y}" x2="${LF.x}" y2="${LF.y}" stroke="white" stroke-width="0.6" opacity="0.5"/>
+    <line x1="${HP.x}" y1="${HP.y}" x2="${RF.x}" y2="${RF.y}" stroke="white" stroke-width="0.6" opacity="0.5"/>
+
+    <!-- Infield dirt circle -->
+    <circle cx="${HP.x}" cy="${B2.y + 10}" r="55" fill="#92400e" opacity="0.7"/>
+
+    <!-- Infield grass diamond -->
+    <polygon points="${HP.x},${HP.y} ${B1.x},${B1.y} ${B2.x},${B2.y} ${B3.x},${B3.y}"
+             fill="#15803d"/>
+
+    <!-- Pitcher's mound -->
+    <circle cx="${HP.x}" cy="${HP.y - 60}" r="5" fill="#b45309"/>
+
+    <!-- Base paths -->
+    <line x1="${HP.x}" y1="${HP.y}" x2="${B1.x}" y2="${B1.y}" stroke="#b45309" stroke-width="1.5"/>
+    <line x1="${B1.x}" y1="${B1.y}" x2="${B2.x}" y2="${B2.y}" stroke="#b45309" stroke-width="1.5"/>
+    <line x1="${B2.x}" y1="${B2.y}" x2="${B3.x}" y2="${B3.y}" stroke="#b45309" stroke-width="1.5"/>
+    <line x1="${B3.x}" y1="${B3.y}" x2="${HP.x}" y2="${HP.y}" stroke="#b45309" stroke-width="1.5"/>
+
+    <!-- Bases -->
+    <rect x="${B1.x - 4}" y="${B1.y - 4}" width="8" height="8" fill="white" transform="rotate(45,${B1.x},${B1.y})"/>
+    <rect x="${B2.x - 4}" y="${B2.y - 4}" width="8" height="8" fill="white" transform="rotate(45,${B2.x},${B2.y})"/>
+    <rect x="${B3.x - 4}" y="${B3.y - 4}" width="8" height="8" fill="white" transform="rotate(45,${B3.x},${B3.y})"/>
+
+    <!-- Home plate -->
+    <polygon points="${HP.x},${HP.y + 3} ${HP.x + 5},${HP.y - 2} ${HP.x + 5},${HP.y - 7} ${HP.x - 5},${HP.y - 7} ${HP.x - 5},${HP.y - 2}"
+             fill="white"/>
+  `;
+
+  // Plot hits
+  hits.forEach((h, i) => {
+    const col = TRAJ_COLORS[h.trajectory] ?? '#9ca3af';
+    const spd = h.launchSpeed ? `${h.launchSpeed} mph` : '';
+    const dist = h.totalDistance ? ` · ${h.totalDistance} ft` : '';
+    const tip = `#${i + 1}  ${h.batter} vs ${h.pitcher}\n${TRAJ_LABELS[h.trajectory] ?? h.trajectory}  ${spd}${dist}\n${h.call}`;
+    html += `
+      <circle cx="${h.hitX.toFixed(1)}" cy="${h.hitY.toFixed(1)}" r="4.5"
+        fill="${col}" fill-opacity="0.85" stroke="rgba(255,255,255,0.4)" stroke-width="0.75">
+        <title>${tip}</title>
+      </circle>
+      <text x="${h.hitX.toFixed(1)}" y="${h.hitY.toFixed(1)}" text-anchor="middle"
+        dominant-baseline="central" fill="white" font-size="5" font-weight="bold"
+        pointer-events="none">${i + 1}</text>`;
+  });
+
+  svg.innerHTML = html;
+}
+
+function renderSummary(hits) {
+  const el = document.getElementById('summaryBody');
+  if (!hits.length) { el.innerHTML = '<div class="empty">No balls in play</div>'; return; }
+
+  const speeds = hits.map(h => h.launchSpeed).filter(Boolean);
+  const avgSpd = speeds.length ? avg(speeds).toFixed(1) + ' mph' : '—';
+  const maxSpd = speeds.length ? Math.max(...speeds).toFixed(1) + ' mph' : '—';
+  const angles = hits.map(h => h.launchAngle).filter(v => v != null);
+  const avgAng = angles.length ? avg(angles).toFixed(1) + '°' : '—';
+  const dists  = hits.map(h => h.totalDistance).filter(Boolean);
+  const maxDist = dists.length ? Math.max(...dists).toFixed(0) + ' ft' : '—';
+
+  const trajCounts = {};
+  hits.forEach(h => { const k = h.trajectory ?? 'unknown'; trajCounts[k] = (trajCounts[k] || 0) + 1; });
+
+  const trajBars = Object.entries(trajCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([traj, count]) => {
+      const pct = (count / hits.length * 100).toFixed(0);
+      const col = TRAJ_COLORS[traj] ?? '#9ca3af';
+      return `<div class="type-bar-row">
+        <div class="type-bar-label">
+          <span style="display:flex;align-items:center;gap:5px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${col};display:inline-block"></span>
+            ${TRAJ_LABELS[traj] ?? traj}
+          </span>
+          <span>${count} (${pct}%)</span>
+        </div>
+        <div class="type-bar-track"><div class="type-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      </div>`;
+    }).join('');
+
+  el.innerHTML = `
+    <div class="stat-row"><span>Balls in Play</span><span class="stat-val">${hits.length}</span></div>
+    <div class="stat-row"><span>Avg Exit Velo</span><span class="stat-val">${avgSpd}</span></div>
+    <div class="stat-row"><span>Max Exit Velo</span><span class="stat-val">${maxSpd}</span></div>
+    <div class="stat-row"><span>Avg Launch Angle</span><span class="stat-val">${avgAng}</span></div>
+    <div class="stat-row"><span>Max Distance</span><span class="stat-val">${maxDist}</span></div>
+    <div style="margin-top:12px;margin-bottom:6px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280">Trajectory</div>
+    ${trajBars}
+  `;
+}
+
+function renderList(hits) {
+  const el = document.getElementById('hitList');
+  if (!hits.length) { el.innerHTML = '<div class="empty">No balls in play</div>'; return; }
+
+  el.innerHTML = hits.map((h, i) => {
+    const col  = TRAJ_COLORS[h.trajectory] ?? '#9ca3af';
+    const spd  = h.launchSpeed ? h.launchSpeed + ' mph' : '—';
+    const dist = h.totalDistance ? h.totalDistance + ' ft' : '—';
+    const traj = TRAJ_LABELS[h.trajectory] ?? (h.trajectory ?? '—');
+    const result = h.paResult ?? '—';
+    const vid  = h.playId
+      ? `<a href="https://baseballsavant.mlb.com/sporty-videos?playId=${h.playId}" target="_blank">▶ Watch</a>`
+      : '—';
+    return `<div class="hit-item">
+      <span class="hit-num">${i + 1}</span>
+      <span>${h.batter}</span>
+      <span style="color:#9ca3af;font-size:0.75rem">${h.pitcher}</span>
+      <span><span class="traj-dot" style="background:${col}"></span>${traj}</span>
+      <span style="color:#e5e7eb">${result}</span>
+      <span>${spd}</span>
+      <span>${dist}</span>
+      <span>${vid}</span>
+    </div>`;
+  }).join('');
+}
+
+function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
+
+function formatDate(d) {
+  const [y, m, day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m - 1]} ${+day}, ${y}`;
+}
+</script>
+</body>
+</html>
