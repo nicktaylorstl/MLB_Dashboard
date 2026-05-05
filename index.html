@@ -259,7 +259,7 @@ document.getElementById('gameSelect').addEventListener('change', function () {
     .then(r => r.json())
     .then(data => {
       gameData = data;
-      buildDropdowns(data.pitches);
+      buildDropdowns(data);
       refresh();
     });
 });
@@ -278,7 +278,19 @@ document.getElementById('batterSelect').addEventListener('change', () => {
 
 document.getElementById('paSelect').addEventListener('change', refresh);
 
-function buildDropdowns(pitches) {
+function buildDropdowns(data) {
+  const pitches = data.pitches;
+
+  // Derive team abbreviation per player from half-inning
+  // Top inning: away bats, home pitches. Bottom inning: home bats, away pitches.
+  const pitcherTeam = {}, batterTeam = {};
+  pitches.forEach(p => {
+    if (!pitcherTeam[p.pitcher])
+      pitcherTeam[p.pitcher] = p.halfInning === 'top' ? data.homeAbbr : data.awayAbbr;
+    if (!batterTeam[p.batter])
+      batterTeam[p.batter] = p.halfInning === 'top' ? data.awayAbbr : data.homeAbbr;
+  });
+
   const pitchers = [...new Set(pitches.map(p => p.pitcher))].sort();
   const batters  = [...new Set(pitches.map(p => p.batter))].sort();
 
@@ -286,10 +298,20 @@ function buildDropdowns(pitches) {
   const bSel = document.getElementById('batterSelect');
 
   pSel.innerHTML = '<option value="all">All Pitchers</option>';
-  pitchers.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; pSel.appendChild(o); });
+  pitchers.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = `${n} (${pitcherTeam[n] ?? '?'})`;
+    pSel.appendChild(o);
+  });
 
   bSel.innerHTML = '<option value="all">All Batters</option>';
-  batters.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; bSel.appendChild(o); });
+  batters.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = `${n} (${batterTeam[n] ?? '?'})`;
+    bSel.appendChild(o);
+  });
 
   pSel.disabled = false;
   bSel.disabled = false;
