@@ -179,7 +179,10 @@
 <div class="controls">
   <div class="control-group">
     <label>Game</label>
-    <select id="gameSelect"><option value="">— Select a game —</option></select>
+    <select id="gameSelect">
+      <option value="">— Select a game —</option>
+      <option value="__all__">All Games (Full Season)</option>
+    </select>
   </div>
   <div class="control-group">
     <label>Pitcher</label>
@@ -225,6 +228,9 @@
 <script>
 const DATA = 'data/';
 let gameData = null;
+let allGamesMode = false;
+let playersIndex = null;
+let loadedForPlayer = null;
 
 // Field coordinate system
 // Home plate: (125, 205), field extends upward
@@ -266,17 +272,30 @@ fetch(DATA + 'games_index.json')
 
 document.getElementById('gameSelect').addEventListener('change', function () {
   if (!this.value) return;
-  fetch(DATA + this.value)
-    .then(r => r.json())
-    .then(data => {
-      gameData = data;
-      buildDropdowns(data);
-      refresh();
-    });
+  allGamesMode = this.value === '__all__';
+  if (allGamesMode) {
+    gameData = null;
+    loadedForPlayer = null;
+    loadPlayersIndex();
+  } else {
+    fetch(DATA + this.value)
+      .then(r => r.json())
+      .then(data => {
+        gameData = data;
+        buildDropdowns(data);
+        refresh();
+      });
+  }
 });
 
-document.getElementById('pitcherSelect').addEventListener('change', refresh);
-document.getElementById('batterSelect').addEventListener('change', refresh);
+document.getElementById('pitcherSelect').addEventListener('change', async () => {
+  if (allGamesMode) { await refreshAllGames(); return; }
+  refresh();
+});
+document.getElementById('batterSelect').addEventListener('change', async () => {
+  if (allGamesMode) { await refreshAllGames(); return; }
+  refresh();
+});
 
 function buildDropdowns(data) {
   const pitches = data.pitches;
@@ -346,8 +365,13 @@ function refresh() {
   const b = document.getElementById('batterSelect').value;
   const pLabel = p === 'all' ? 'All Pitchers' : p;
   const bLabel = b === 'all' ? 'All Batters'  : b;
-  document.getElementById('fieldTitle').textContent =
-    `${pLabel}  →  ${bLabel}  (${hits.length} ball${hits.length !== 1 ? 's' : ''} in play)`;
+  if (allGamesMode && p === 'all' && b === 'all') {
+    document.getElementById('fieldTitle').textContent = 'Select a pitcher or batter to view season data';
+  } else {
+    const gLabel = allGamesMode ? '  —  All Games' : '';
+    document.getElementById('fieldTitle').textContent =
+      `${pLabel}  →  ${bLabel}${gLabel}  (${hits.length} ball${hits.length !== 1 ? 's' : ''} in play)`;
+  }
 }
 
 function renderField(hits) {
@@ -495,6 +519,67 @@ function renderList(hits) {
       <span>${vid}</span>
     </div>`;
   }).join('');
+}
+
+async function loadPlayersIndex() {
+  if (!playersIndex) {
+    playersIndex = await fetch(DATA + 'players_index.json').then(r => r.json());
+  }
+  buildAllGamesDropdowns();
+  refresh();
+}
+
+function buildAllGamesDropdowns() {
+  const pSel = document.getElementById('pitcherSelect');
+  const bSel = document.getElementById('batterSelect');
+
+  pSel.innerHTML = '<option value="all">All Pitchers</option>';
+  Object.entries(playersIndex.pitchers)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([name, info]) => {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = `${name} (${info.team})`;
+      pSel.appendChild(o);
+    });
+
+  bSel.innerHTML = '<option value="all">All Batters</option>';
+  Object.entries(playersIndex.batters)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([name, info]) => {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = `${name} (${info.team})`;
+      bSel.appendChild(o);
+    });
+
+  pSel.disabled = false;
+  bSel.disabled = false;
+}
+
+async function refreshAllGames() {
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+
+  if (p === 'all' && b === 'all') {
+    gameData = null;
+    loadedForPlayer = null;
+    refresh();
+    return;
+  }
+
+  const loadFor = p !== 'all' ? `pitcher:${p}` : `batter:${b}`;
+  if (loadedForPlayer !== loadFor) {
+    loadedForPlayer = loadFor;
+    document.getElementById('fieldTitle').textContent = 'Loading...';
+    const gameFiles = p !== 'all'
+      ? (playersIndex.pitchers[p]?.games || [])
+      : (playersIndex.batters[b]?.games || []);
+    const results = await Promise.all(gameFiles.map(f => fetch(DATA + f).then(r => r.json())));
+    gameData = { pitches: results.flatMap(g => g.pitches), homeAbbr: '', awayAbbr: '' };
+  }
+
+  refresh();
 }
 
 function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }

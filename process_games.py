@@ -8,6 +8,7 @@ INDEX_FILE = os.path.join(OUTPUT_DIR, "games_index.json")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 games_index = []
+player_games = {"pitchers": {}, "batters": {}}
 
 for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
     filename = os.path.basename(filepath)
@@ -88,8 +89,30 @@ for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
                 pitch["launchSpeed"] = hit_data.get("launchSpeed")
                 pitch["launchAngle"] = hit_data.get("launchAngle")
                 pitch["trajectory"] = hit_data.get("trajectory")
+                pitch["totalDistance"] = hit_data.get("totalDistance")
+                hit_coords = hit_data.get("coordinates", {})
+                pitch["hitX"] = hit_coords.get("coordX")
+                pitch["hitY"] = hit_coords.get("coordY")
 
             pitches.append(pitch)
+
+    seen_p, seen_b = set(), set()
+    for pitch in pitches:
+        pname = pitch["pitcher"]
+        bname = pitch["batter"]
+        half = pitch.get("halfInning", "top")
+        if pname not in seen_p:
+            seen_p.add(pname)
+            pteam = home_abbr if half == "top" else away_abbr
+            entry = player_games["pitchers"].setdefault(pname, {"team": pteam, "games": []})
+            entry["games"].append(f"{game_pk}.json")
+            entry["team"] = pteam
+        if bname not in seen_b:
+            seen_b.add(bname)
+            bteam = away_abbr if half == "top" else home_abbr
+            entry = player_games["batters"].setdefault(bname, {"team": bteam, "games": []})
+            entry["games"].append(f"{game_pk}.json")
+            entry["team"] = bteam
 
     out = {
         "gamePk": game_pk,
@@ -120,5 +143,10 @@ for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
 games_index.sort(key=lambda x: (x["date"], x["gamePk"]))
 with open(INDEX_FILE, "w", encoding="utf-8") as f:
     json.dump(games_index, f)
+
+players_index_file = os.path.join(OUTPUT_DIR, "players_index.json")
+with open(players_index_file, "w", encoding="utf-8") as f:
+    json.dump(player_games, f)
+print(f"Players index: {len(player_games['pitchers'])} pitchers, {len(player_games['batters'])} batters")
 
 print(f"\nDone. {len(games_index)} games written to {OUTPUT_DIR}")

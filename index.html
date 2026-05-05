@@ -184,7 +184,10 @@
 <div class="controls">
   <div class="control-group">
     <label>Game</label>
-    <select id="gameSelect"><option value="">— Select a game —</option></select>
+    <select id="gameSelect">
+      <option value="">— Select a game —</option>
+      <option value="__all__">All Games (Full Season)</option>
+    </select>
   </div>
   <div class="control-group">
     <label>Pitcher</label>
@@ -233,6 +236,9 @@
 <script>
 const DATA = 'data/';
 let gameData = null;
+let allGamesMode = false;
+let playersIndex = null;
+let loadedForPlayer = null;
 
 // SVG coordinate helpers
 const W = 380, H = 460;
@@ -271,22 +277,33 @@ fetch(DATA + 'games_index.json')
 
 document.getElementById('gameSelect').addEventListener('change', function () {
   if (!this.value) return;
-  fetch(DATA + this.value)
-    .then(r => r.json())
-    .then(data => {
-      gameData = data;
-      buildDropdowns(data);
-      refresh();
-    });
+  allGamesMode = this.value === '__all__';
+  if (allGamesMode) {
+    gameData = null;
+    loadedForPlayer = null;
+    document.getElementById('paSelect').value = 'all';
+    document.getElementById('paSelect').disabled = true;
+    loadPlayersIndex();
+  } else {
+    fetch(DATA + this.value)
+      .then(r => r.json())
+      .then(data => {
+        gameData = data;
+        buildDropdowns(data);
+        refresh();
+      });
+  }
 });
 
-document.getElementById('pitcherSelect').addEventListener('change', () => {
+document.getElementById('pitcherSelect').addEventListener('change', async () => {
+  if (allGamesMode) { await refreshAllGames(); return; }
   buildPaDropdown(getFilteredByPB());
   document.getElementById('paSelect').value = 'all';
   refresh();
 });
 
-document.getElementById('batterSelect').addEventListener('change', () => {
+document.getElementById('batterSelect').addEventListener('change', async () => {
+  if (allGamesMode) { await refreshAllGames(); return; }
   buildPaDropdown(getFilteredByPB());
   document.getElementById('paSelect').value = 'all';
   refresh();
@@ -419,8 +436,13 @@ function refresh() {
   const pLabel  = p  === 'all' ? 'All Pitchers' : p;
   const bLabel  = b  === 'all' ? 'All Batters'  : b;
   const paLabel = pa === 'all' ? '' : ` — PA ${document.getElementById('paSelect').selectedOptions[0].text.split(':')[0].replace('PA ','')}`;
-  document.getElementById('zoneTitle').textContent =
-    `${pLabel}  →  ${bLabel}${paLabel}  (${labeled.length} pitch${labeled.length !== 1 ? 'es' : ''})`;
+  if (allGamesMode && p === 'all' && b === 'all') {
+    document.getElementById('zoneTitle').textContent = 'Select a pitcher or batter to view season data';
+  } else {
+    const gLabel = allGamesMode ? '  —  All Games' : '';
+    document.getElementById('zoneTitle').textContent =
+      `${pLabel}  →  ${bLabel}${paLabel}${gLabel}  (${labeled.length} pitch${labeled.length !== 1 ? 'es' : ''})`;
+  }
 }
 
 function renderZone(labeled) {
@@ -559,6 +581,67 @@ function renderList(labeled) {
       <span>${vid}</span>
     </div>`;
   }).join('');
+}
+
+async function loadPlayersIndex() {
+  if (!playersIndex) {
+    playersIndex = await fetch(DATA + 'players_index.json').then(r => r.json());
+  }
+  buildAllGamesDropdowns();
+  refresh();
+}
+
+function buildAllGamesDropdowns() {
+  const pSel = document.getElementById('pitcherSelect');
+  const bSel = document.getElementById('batterSelect');
+
+  pSel.innerHTML = '<option value="all">All Pitchers</option>';
+  Object.entries(playersIndex.pitchers)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([name, info]) => {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = `${name} (${info.team})`;
+      pSel.appendChild(o);
+    });
+
+  bSel.innerHTML = '<option value="all">All Batters</option>';
+  Object.entries(playersIndex.batters)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([name, info]) => {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = `${name} (${info.team})`;
+      bSel.appendChild(o);
+    });
+
+  pSel.disabled = false;
+  bSel.disabled = false;
+}
+
+async function refreshAllGames() {
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+
+  if (p === 'all' && b === 'all') {
+    gameData = null;
+    loadedForPlayer = null;
+    refresh();
+    return;
+  }
+
+  const loadFor = p !== 'all' ? `pitcher:${p}` : `batter:${b}`;
+  if (loadedForPlayer !== loadFor) {
+    loadedForPlayer = loadFor;
+    document.getElementById('zoneTitle').textContent = 'Loading...';
+    const gameFiles = p !== 'all'
+      ? (playersIndex.pitchers[p]?.games || [])
+      : (playersIndex.batters[b]?.games || []);
+    const results = await Promise.all(gameFiles.map(f => fetch(DATA + f).then(r => r.json())));
+    gameData = { pitches: results.flatMap(g => g.pitches), homeAbbr: '', awayAbbr: '' };
+  }
+
+  refresh();
 }
 
 function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
