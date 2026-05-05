@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Baseball Pitch Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1f2937;
+      padding: 14px 24px;
+      border-bottom: 2px solid #374151;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; color: #f9fafb; }
+
+    .controls {
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+    select {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #374151;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      min-width: 220px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    select:hover { border-color: #6b7280; }
+    select:focus { outline: none; border-color: #3b82f6; }
+    select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .main {
+      display: flex;
+      gap: 20px;
+      padding: 20px 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .zone-panel {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    #zoneTitle { font-size: 0.8rem; color: #9ca3af; text-align: center; }
+    #strikeZone { display: block; }
+    .legend {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #d1d5db; }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; }
+
+    .right-panel { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 16px; }
+
+    .card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 10px 14px;
+      background: #111827;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      border-bottom: 1px solid #374151;
+    }
+    .card-body { padding: 12px 14px; }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #1f2937;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val { font-weight: 600; color: #60a5fa; }
+
+    .type-bar-row { padding: 4px 0; }
+    .type-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #d1d5db;
+      margin-bottom: 3px;
+    }
+    .type-bar-track { height: 5px; background: #374151; border-radius: 3px; overflow: hidden; }
+    .type-bar-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
+
+    #pitchList { max-height: 380px; overflow-y: auto; }
+    .pitch-list-header {
+      display: grid;
+      grid-template-columns: 36px 1.5fr 1.5fr 1fr 40px 56px;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+      position: sticky;
+      top: 0;
+    }
+    .pitch-item {
+      display: grid;
+      grid-template-columns: 36px 1.5fr 1.5fr 1fr 40px 56px;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      border-bottom: 1px solid #1f2937;
+      align-items: center;
+      transition: background 0.1s;
+    }
+    .pitch-item:hover { background: #111827; }
+    .pitch-item a { color: #3b82f6; text-decoration: none; font-size: 0.75rem; }
+    .pitch-item a:hover { text-decoration: underline; }
+    .pitch-num {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #6b7280;
+      font-variant-numeric: tabular-nums;
+    }
+    .outcome-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+    .empty { color: #4b5563; text-align: center; padding: 32px; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.4rem">⚾</span>
+  <h1>Pitch Visualizer</h1>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Game</label>
+    <select id="gameSelect"><option value="">— Select a game —</option></select>
+  </div>
+  <div class="control-group">
+    <label>Pitcher</label>
+    <select id="pitcherSelect" disabled><option value="all">All Pitchers</option></select>
+  </div>
+  <div class="control-group">
+    <label>Batter</label>
+    <select id="batterSelect" disabled><option value="all">All Batters</option></select>
+  </div>
+  <div class="control-group">
+    <label>Plate Appearance</label>
+    <select id="paSelect" disabled><option value="all">All Plate Appearances</option></select>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="zone-panel">
+    <div id="zoneTitle">Select a game to begin</div>
+    <svg id="strikeZone" width="380" height="460" viewBox="0 0 380 460">
+      <rect width="380" height="460" fill="#111827" rx="4"/>
+      <text x="190" y="235" text-anchor="middle" fill="#374151" font-size="13">No data loaded</text>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Strike / Foul</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Ball</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>In Play</div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="card">
+      <div class="card-header">Summary</div>
+      <div class="card-body" id="summaryBody"><div class="empty">No game selected</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Pitches</div>
+      <div class="pitch-list-header">
+        <span>#</span><span>Type</span><span>Call</span><span>Speed</span><span>Inn.</span><span>Video</span>
+      </div>
+      <div id="pitchList"><div class="empty">No pitches to display</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = 'data/';
+let gameData = null;
+
+// SVG coordinate helpers
+const W = 380, H = 460;
+const PAD_X = 20, PAD_Y = 12;
+const PLOT_W = W - PAD_X * 2;
+const PLOT_H = H - PAD_Y - 50;
+const PX_MIN = -2.5, PX_MAX = 2.5;
+const PZ_MIN = 0,    PZ_MAX = 5.5;
+
+function svgX(px) { return PAD_X + (px - PX_MIN) / (PX_MAX - PX_MIN) * PLOT_W; }
+function svgY(pz) { return PAD_Y + (1 - (pz - PZ_MIN) / (PZ_MAX - PZ_MIN)) * PLOT_H; }
+
+const COLORS = { strike: '#ef4444', ball: '#22c55e', inplay: '#3b82f6' };
+const PLATE_HW = 17 / 24;
+
+// Load game index — newest first
+fetch(DATA + 'games_index.json')
+  .then(r => r.json())
+  .then(index => {
+    index.reverse();
+    const sel = document.getElementById('gameSelect');
+    let lastDate = '';
+    index.forEach(g => {
+      if (g.date !== lastDate) {
+        const og = document.createElement('optgroup');
+        og.label = formatDate(g.date);
+        sel.appendChild(og);
+        lastDate = g.date;
+      }
+      const opt = document.createElement('option');
+      opt.value = g.file;
+      opt.textContent = `${g.awayAbbr} @ ${g.homeAbbr}  —  ${g.away} vs ${g.home}`;
+      sel.lastChild.appendChild(opt);
+    });
+  });
+
+document.getElementById('gameSelect').addEventListener('change', function () {
+  if (!this.value) return;
+  fetch(DATA + this.value)
+    .then(r => r.json())
+    .then(data => {
+      gameData = data;
+      buildDropdowns(data.pitches);
+      refresh();
+    });
+});
+
+document.getElementById('pitcherSelect').addEventListener('change', () => {
+  buildPaDropdown(getFilteredByPB());
+  document.getElementById('paSelect').value = 'all';
+  refresh();
+});
+
+document.getElementById('batterSelect').addEventListener('change', () => {
+  buildPaDropdown(getFilteredByPB());
+  document.getElementById('paSelect').value = 'all';
+  refresh();
+});
+
+document.getElementById('paSelect').addEventListener('change', refresh);
+
+function buildDropdowns(pitches) {
+  const pitchers = [...new Set(pitches.map(p => p.pitcher))].sort();
+  const batters  = [...new Set(pitches.map(p => p.batter))].sort();
+
+  const pSel = document.getElementById('pitcherSelect');
+  const bSel = document.getElementById('batterSelect');
+
+  pSel.innerHTML = '<option value="all">All Pitchers</option>';
+  pitchers.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; pSel.appendChild(o); });
+
+  bSel.innerHTML = '<option value="all">All Batters</option>';
+  batters.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; bSel.appendChild(o); });
+
+  pSel.disabled = false;
+  bSel.disabled = false;
+
+  buildPaDropdown(pitches);
+}
+
+function buildPaDropdown(pitches) {
+  const sel = document.getElementById('paSelect');
+  sel.innerHTML = '<option value="all">All Plate Appearances</option>';
+
+  // One entry per unique at-bat, in game order
+  const seen = new Set();
+  let paSeq = 0;
+  pitches
+    .slice()
+    .sort((a, b) => a.atBatIndex - b.atBatIndex)
+    .forEach(p => {
+      if (seen.has(p.atBatIndex)) return;
+      seen.add(p.atBatIndex);
+      paSeq++;
+      const inn = `${p.halfInning === 'top' ? '▲' : '▼'}${p.inning}`;
+      const opt = document.createElement('option');
+      opt.value = p.atBatIndex;
+      opt.textContent = `PA ${paSeq}: ${inn}  ${p.pitcher} vs ${p.batter}  (${p.paResult})`;
+      sel.appendChild(opt);
+    });
+
+  sel.disabled = seen.size === 0;
+}
+
+// Filter by pitcher + batter only (no PA)
+function getFilteredByPB() {
+  if (!gameData) return [];
+  const p = document.getElementById('pitcherSelect').value;
+  const b = document.getElementById('batterSelect').value;
+  return gameData.pitches.filter(pitch =>
+    (p === 'all' || pitch.pitcher === p) &&
+    (b === 'all' || pitch.batter === b)
+  );
+}
+
+// Filter by pitcher + batter + PA
+function getFiltered() {
+  const pa = document.getElementById('paSelect').value;
+  const byPB = getFilteredByPB();
+  return pa === 'all' ? byPB : byPB.filter(p => String(p.atBatIndex) === String(pa));
+}
+
+// Returns pitches sorted by PA order + pitch order, with a label string on each
+function withLabels(pitches) {
+  const sorted = pitches.slice().sort((a, b) =>
+    a.atBatIndex !== b.atBatIndex ? a.atBatIndex - b.atBatIndex : a.pitchInPa - b.pitchInPa
+  );
+  const specificPa = document.getElementById('paSelect').value !== 'all';
+  const paOrder = [...new Set(sorted.map(p => p.atBatIndex))];
+  const paSeqMap = Object.fromEntries(paOrder.map((idx, i) => [idx, i + 1]));
+  return sorted.map(p => ({
+    ...p,
+    label: specificPa ? String(p.pitchInPa) : `${paSeqMap[p.atBatIndex]}-${p.pitchInPa}`
+  }));
+}
+
+function refresh() {
+  const labeled = withLabels(getFiltered());
+  renderZone(labeled);
+  renderSummary(labeled);
+  renderList(labeled);
+
+  const p  = document.getElementById('pitcherSelect').value;
+  const b  = document.getElementById('batterSelect').value;
+  const pa = document.getElementById('paSelect').value;
+  const pLabel  = p  === 'all' ? 'All Pitchers' : p;
+  const bLabel  = b  === 'all' ? 'All Batters'  : b;
+  const paLabel = pa === 'all' ? '' : ` — PA ${document.getElementById('paSelect').selectedOptions[0].text.split(':')[0].replace('PA ','')}`;
+  document.getElementById('zoneTitle').textContent =
+    `${pLabel}  →  ${bLabel}${paLabel}  (${labeled.length} pitch${labeled.length !== 1 ? 'es' : ''})`;
+}
+
+function renderZone(labeled) {
+  const svg = document.getElementById('strikeZone');
+  const specificPa = document.getElementById('paSelect').value !== 'all';
+
+  const avgSzTop    = avg(labeled.map(p => p.szTop).filter(Boolean))    ?? 3.5;
+  const avgSzBottom = avg(labeled.map(p => p.szBottom).filter(Boolean)) ?? 1.5;
+
+  const zx1 = svgX(-PLATE_HW), zx2 = svgX(PLATE_HW);
+  const zy1 = svgY(avgSzTop),  zy2 = svgY(avgSzBottom);
+  const zw = zx2 - zx1, zh = zy2 - zy1;
+
+  const plateTop = svgY(0) + 8;
+  const platePts = [
+    `${svgX(-PLATE_HW)},${plateTop}`,
+    `${svgX( PLATE_HW)},${plateTop}`,
+    `${svgX( PLATE_HW)},${plateTop + 10}`,
+    `${svgX(0)},${plateTop + 22}`,
+    `${svgX(-PLATE_HW)},${plateTop + 10}`,
+  ].join(' ');
+
+  // Circle size: single PA uses simple numbers (max ~12), multi uses "X-Y"
+  const r  = specificPa ? 9  : 10;
+  const fs = specificPa ? 8  : 7;
+
+  let html = `
+    <rect width="${W}" height="${H}" fill="#111827" rx="4"/>
+
+    <!-- Outer chase zone -->
+    <rect x="${svgX(-PLATE_HW - 0.333)}" y="${svgY(avgSzTop + 0.333)}"
+          width="${(zw + svgX(0.333) - svgX(0)) * 2 + zw}"
+          height="${zh + 2 * (svgY(0) - svgY(0.333))}"
+          fill="none" stroke="#374151" stroke-width="0.5" stroke-dasharray="3,3"/>
+
+    <!-- Strike zone box -->
+    <rect x="${zx1}" y="${zy1}" width="${zw}" height="${zh}"
+          fill="rgba(255,255,255,0.03)" stroke="#6b7280" stroke-width="1.5" rx="1"/>
+
+    <!-- Zone grid (9 zones) -->
+    <line x1="${zx1}" y1="${zy1 + zh/3}"   x2="${zx2}" y2="${zy1 + zh/3}"   stroke="#374151" stroke-width="0.75"/>
+    <line x1="${zx1}" y1="${zy1 + zh*2/3}" x2="${zx2}" y2="${zy1 + zh*2/3}" stroke="#374151" stroke-width="0.75"/>
+    <line x1="${zx1 + zw/3}"   y1="${zy1}" x2="${zx1 + zw/3}"   y2="${zy2}" stroke="#374151" stroke-width="0.75"/>
+    <line x1="${zx1 + zw*2/3}" y1="${zy1}" x2="${zx1 + zw*2/3}" y2="${zy2}" stroke="#374151" stroke-width="0.75"/>
+
+    <!-- Center vertical -->
+    <line x1="${svgX(0)}" y1="${zy1 - 6}" x2="${svgX(0)}" y2="${zy2 + 12}"
+          stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <!-- SZ labels -->
+    <text x="${zx1 - 4}" y="${zy1 + 4}" text-anchor="end" fill="#4b5563" font-size="9">${avgSzTop.toFixed(1)}</text>
+    <text x="${zx1 - 4}" y="${zy2 + 4}" text-anchor="end" fill="#4b5563" font-size="9">${avgSzBottom.toFixed(1)}</text>
+    <text x="${svgX(0)}" y="${H - 4}" text-anchor="middle" fill="#4b5563" font-size="9">0</text>
+
+    <!-- Home plate -->
+    <polygon points="${platePts}" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1"/>
+  `;
+
+  // Draw pitch circles with number labels
+  labeled.forEach(p => {
+    const cx = svgX(p.pX).toFixed(1);
+    const cy = svgY(p.pZ).toFixed(1);
+    const col = COLORS[p.outcome] ?? '#9ca3af';
+    const tip = `#${p.label}  ${p.pitcher} → ${p.batter}\n${p.pitchType} | ${p.call}${p.startSpeed ? ' | ' + p.startSpeed + ' mph' : ''}`;
+    html += `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="${col}" fill-opacity="0.85"
+        stroke="rgba(255,255,255,0.3)" stroke-width="0.75">
+        <title>${tip}</title>
+      </circle>
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+        fill="white" font-size="${fs}" font-weight="bold" pointer-events="none">${p.label}</text>`;
+  });
+
+  svg.innerHTML = html;
+}
+
+function renderSummary(labeled) {
+  const el = document.getElementById('summaryBody');
+  if (!labeled.length) { el.innerHTML = '<div class="empty">No pitches</div>'; return; }
+
+  const strikes = labeled.filter(p => p.outcome === 'strike').length;
+  const balls   = labeled.filter(p => p.outcome === 'ball').length;
+  const inplay  = labeled.filter(p => p.outcome === 'inplay').length;
+  const speeds  = labeled.map(p => p.startSpeed).filter(Boolean);
+  const avgSpd  = speeds.length ? avg(speeds).toFixed(1) + ' mph' : '—';
+  const maxSpd  = speeds.length ? Math.max(...speeds).toFixed(1) + ' mph' : '—';
+
+  const typeCounts = {};
+  labeled.forEach(p => { typeCounts[p.pitchType] = (typeCounts[p.pitchType] || 0) + 1; });
+  const total = labeled.length;
+
+  const typeBars = Object.entries(typeCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => {
+      const pct = (count / total * 100).toFixed(0);
+      return `<div class="type-bar-row">
+        <div class="type-bar-label"><span>${type}</span><span>${count} (${pct}%)</span></div>
+        <div class="type-bar-track"><div class="type-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+
+  el.innerHTML = `
+    <div class="stat-row"><span>Total Pitches</span><span class="stat-val">${total}</span></div>
+    <div class="stat-row"><span>Strikes / Fouls</span><span class="stat-val">${strikes}</span></div>
+    <div class="stat-row"><span>Balls</span><span class="stat-val">${balls}</span></div>
+    <div class="stat-row"><span>In Play</span><span class="stat-val">${inplay}</span></div>
+    <div class="stat-row"><span>Avg Velocity</span><span class="stat-val">${avgSpd}</span></div>
+    <div class="stat-row"><span>Max Velocity</span><span class="stat-val">${maxSpd}</span></div>
+    <div style="margin-top:12px;margin-bottom:6px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280">Pitch Mix</div>
+    ${typeBars}
+  `;
+}
+
+function renderList(labeled) {
+  const el = document.getElementById('pitchList');
+  if (!labeled.length) { el.innerHTML = '<div class="empty">No pitches</div>'; return; }
+
+  el.innerHTML = labeled.map(p => {
+    const col = COLORS[p.outcome] ?? '#9ca3af';
+    const spd = p.startSpeed ? p.startSpeed + ' mph' : '—';
+    const inn = p.inning ? `${p.halfInning === 'top' ? '▲' : '▼'}${p.inning}` : '—';
+    const vid = p.playId
+      ? `<a href="https://baseballsavant.mlb.com/sporty-videos?playId=${p.playId}" target="_blank">▶ Watch</a>`
+      : '—';
+    return `<div class="pitch-item">
+      <span class="pitch-num">${p.label}</span>
+      <span><span class="outcome-dot" style="background:${col}"></span>${p.pitchType}</span>
+      <span style="color:#9ca3af;font-size:0.75rem">${p.call}</span>
+      <span>${spd}</span>
+      <span style="color:#6b7280">${inn}</span>
+      <span>${vid}</span>
+    </div>`;
+  }).join('');
+}
+
+function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
+
+function formatDate(d) {
+  const [y, m, day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m - 1]} ${+day}, ${y}`;
+}
+</script>
+</body>
+</html>
