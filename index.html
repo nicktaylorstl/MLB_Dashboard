@@ -485,13 +485,18 @@ function renderZone(labeled) {
     const cy = svgY(p.pZ).toFixed(1);
     const col = COLORS[p.outcome] ?? '#9ca3af';
     const tip = `#${p.label}  ${p.pitcher} → ${p.batter}\n${p.pitchType} | ${p.call}${p.startSpeed ? ' | ' + p.startSpeed + ' mph' : ''}`;
+    const href = p.playId ? `https://baseballsavant.mlb.com/sporty-videos?playId=${p.playId}` : null;
+    const open = href ? `<a href="${href}" target="_blank" style="cursor:pointer">` : `<g>`;
+    const close = href ? `</a>` : `</g>`;
     html += `
+      ${open}
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="${col}" fill-opacity="0.85"
         stroke="rgba(255,255,255,0.3)" stroke-width="0.75">
         <title>${tip}</title>
       </circle>
       <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
-        fill="white" font-size="${fs}" font-weight="bold" pointer-events="none">${p.label}</text>`;
+        fill="white" font-size="${fs}" font-weight="bold" pointer-events="none">${p.label}</text>
+      ${close}`;
   });
 
   svg.innerHTML = html;

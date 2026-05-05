@@ -410,14 +410,19 @@ function renderField(hits) {
     const spd = h.launchSpeed ? `${h.launchSpeed} mph` : '';
     const dist = h.totalDistance ? ` · ${h.totalDistance} ft` : '';
     const tip = `#${i + 1}  ${h.batter} vs ${h.pitcher}\n${TRAJ_LABELS[h.trajectory] ?? h.trajectory}  ${spd}${dist}\n${h.call}`;
+    const href = h.playId ? `https://baseballsavant.mlb.com/sporty-videos?playId=${h.playId}` : null;
+    const open = href ? `<a href="${href}" target="_blank" style="cursor:pointer">` : `<g>`;
+    const close = href ? `</a>` : `</g>`;
     html += `
+      ${open}
       <circle cx="${h.hitX.toFixed(1)}" cy="${h.hitY.toFixed(1)}" r="4.5"
         fill="${col}" fill-opacity="0.85" stroke="rgba(255,255,255,0.4)" stroke-width="0.75">
         <title>${tip}</title>
       </circle>
       <text x="${h.hitX.toFixed(1)}" y="${h.hitY.toFixed(1)}" text-anchor="middle"
         dominant-baseline="central" fill="white" font-size="5" font-weight="bold"
-        pointer-events="none">${i + 1}</text>`;
+        pointer-events="none">${i + 1}</text>
+      ${close}`;
   });
 
   svg.innerHTML = html;
