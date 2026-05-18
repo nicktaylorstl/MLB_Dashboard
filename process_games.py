@@ -3,7 +3,7 @@ import json
 import glob
 
 INPUT_DIR = "D:/Baseball_Data/game_jsons/2026/"
-OUTPUT_DIR = "D:/Baseball_Web/data/"
+OUTPUT_DIR = "D:/Baseball_Data/Baseball_Web/data/"
 INDEX_FILE = os.path.join(OUTPUT_DIR, "games_index.json")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -222,15 +222,16 @@ for filepath in sorted(glob.glob(os.path.join(INPUT_DIR, "*.json"))):
         except OSError:
             import time; time.sleep(0.3)
 
-    games_index.append({
-        "gamePk": game_pk,
-        "date": date,
-        "away": away_team,
-        "home": home_team,
-        "awayAbbr": away_abbr,
-        "homeAbbr": home_abbr,
-        "file": f"{game_pk}.json",
-    })
+    if pitches:
+        games_index.append({
+            "gamePk": game_pk,
+            "date": date,
+            "away": away_team,
+            "home": home_team,
+            "awayAbbr": away_abbr,
+            "homeAbbr": home_abbr,
+            "file": f"{game_pk}.json",
+        })
     print(f"Processed: {date} {away_abbr} @ {home_abbr} ({len(pitches)} pitches, {len(fielding_events)} fielding)")
 
 games_index.sort(key=lambda x: (x["date"], x["gamePk"]))
